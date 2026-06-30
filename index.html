@@ -190,6 +190,7 @@
             display: flex;
             gap: 10px;
             margin-bottom: 16px;
+            flex-wrap: wrap;
         }
         .input-methods .tab {
             padding: 8px 22px;
@@ -248,27 +249,39 @@
             color: #48A89E;
         }
 
-        /* ===== 选项行 ===== */
-        .options-row {
+        /* ===== 声线选择 ===== */
+        .voice-selector {
             display: flex;
             flex-wrap: wrap;
-            gap: 20px 32px;
-            margin: 18px 0 16px;
-            align-items: center;
+            gap: 10px;
+            margin: 6px 0 10px;
         }
-        .options-row label {
-            display: flex;
-            align-items: center;
-            gap: 8px;
+        .voice-btn {
+            padding: 8px 22px;
+            border-radius: 40px;
+            border: 1.5px solid #D1D0C8;
+            background: #F9F7E8;
+            font-size: 0.85rem;
             font-weight: 500;
             color: #121212;
-            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
         }
-        .options-row input[type="radio"],
-        .options-row input[type="checkbox"] {
-            accent-color: #48A89E;
-            width: 17px;
-            height: 17px;
+        .voice-btn:hover {
+            border-color: #48A89E;
+            background: #E4EDD8;
+        }
+        .voice-btn.active {
+            border-color: #48A89E;
+            background: #48A89E;
+            color: #FFFFFF;
+        }
+        .voice-btn .voice-label {
+            font-weight: 400;
+            color: #777770;
+        }
+        .voice-btn.active .voice-label {
+            color: rgba(255,255,255,0.8);
         }
 
         /* ===== 按钮 ===== */
@@ -310,6 +323,15 @@
         .btn-outline:hover {
             border-color: #48A89E;
             background: rgba(72, 168, 158, 0.05);
+        }
+        .btn-danger {
+            background: #e74c6f;
+            color: #FFFFFF;
+            box-shadow: 0 4px 14px rgba(231, 76, 111, 0.20);
+        }
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 22px rgba(231, 76, 111, 0.25);
         }
         .btn-sm {
             padding: 6px 18px;
@@ -439,11 +461,15 @@
             .main-card {
                 padding: 18px;
             }
-            .options-row {
-                gap: 10px;
-            }
             .stats-grid {
                 grid-template-columns: repeat(2, 1fr);
+            }
+            .voice-selector {
+                gap: 8px;
+            }
+            .voice-btn {
+                padding: 6px 16px;
+                font-size: 0.8rem;
             }
         }
 
@@ -523,18 +549,20 @@
             </div>
         </div>
 
-        <!-- 选项 -->
-        <div class="options-row">
-            <label><i class="fas fa-globe-americas"></i> 发音偏好</label>
-            <label><input type="radio" name="pronunciation" value="us" checked /> 🇺🇸 美式</label>
-            <label><input type="radio" name="pronunciation" value="uk" /> 🇬🇧 英式</label>
-            <label style="margin-left:4px;"><input type="checkbox" id="smartSegmentation" checked /> 自动断句</label>
+        <!-- 声线选择 -->
+        <div style="margin: 10px 0 4px;">
+            <span style="font-weight:500; font-size:0.85rem; color:#777770; margin-right:10px;"><i class="fas fa-user-edit"></i> 声线选择</span>
+        </div>
+        <div class="voice-selector" id="voiceSelector">
+            <button class="voice-btn active" data-voice="ms-henge">Ms. Henge <span class="voice-label">英音</span></button>
+            <button class="voice-btn" data-voice="lily">Lily <span class="voice-label">美音</span></button>
         </div>
 
         <!-- 操作按钮 -->
-        <div class="flex-row">
+        <div class="flex-row" style="margin-top:16px;">
             <button class="btn btn-primary" id="processBtn"><i class="fas fa-cogs"></i> 处理内容</button>
             <button class="btn btn-secondary" id="generateBtn" disabled><i class="fas fa-link"></i> 生成练习链接</button>
+            <button class="btn btn-danger" id="clearBtn"><i class="fas fa-trash-alt"></i> 清空</button>
         </div>
 
         <!-- 统计信息（处理完成后显示） -->
@@ -543,8 +571,8 @@
             <div class="stats-grid" id="statsGrid">
                 <div class="stat-card"><div class="stat-label">总词数</div><div class="stat-number" id="statTotalWords">0</div></div>
                 <div class="stat-card pink"><div class="stat-label">总句数</div><div class="stat-number" id="statTotalSentences">0</div></div>
-                <div class="stat-card orange"><div class="stat-label">平均每句长度</div><div class="stat-number" id="statAvgLength">0</div><div class="stat-sub">词/句</div></div>
-                <div class="stat-card purple"><div class="stat-label">全篇预估总时长</div><div class="stat-number" id="statDuration">0</div><div class="stat-sub">秒 (含5秒停顿)</div></div>
+                <div class="stat-card orange"><div class="stat-label">平均每句长度</div><div class="stat-number" id="statAvgLength">0</div><div class="stat-sub">词</div></div>
+                <div class="stat-card purple"><div class="stat-label">全篇预估总时长</div><div class="stat-number" id="statDuration">0</div><div class="stat-sub">秒</div></div>
             </div>
         </div>
 
@@ -617,6 +645,7 @@
     const fileSize = document.getElementById('fileSize');
     const processBtn = document.getElementById('processBtn');
     const generateBtn = document.getElementById('generateBtn');
+    const clearBtn = document.getElementById('clearBtn');
     const sentencePreviewContainer = document.getElementById('sentencePreviewContainer');
     const sentencesList = document.getElementById('sentencesList');
     const sentenceCount = document.getElementById('sentenceCount');
@@ -633,10 +662,13 @@
     const statTotalSentences = document.getElementById('statTotalSentences');
     const statAvgLength = document.getElementById('statAvgLength');
     const statDuration = document.getElementById('statDuration');
+    const voiceSelector = document.getElementById('voiceSelector');
 
     let currentSentences = [];
     let practiceData = {};
     let testSentenceIndex = 0;
+    let selectedVoice = 'ms-henge'; // 默认
+
     const testSentences = [
         "Good morning, class. Today we're going to practice some useful English expressions.",
         "If you want to ask for help, you can say 'Could you please help me with this?'",
@@ -645,21 +677,60 @@
         "When saying goodbye, you can use phrases like 'It was nice talking to you'."
     ];
 
+    // ----- 声线映射 -----
+    const voiceMap = {
+        'ms-henge': { label: 'Ms. Henge', type: 'uk', pitch: 1.0, rate: 0.9, gender: 'female', age: 'adult' },
+        'lily': { label: 'Lily', type: 'us', pitch: 1.0, rate: 0.9, gender: 'female', age: 'adult' }
+    };
+
+    // ----- 声线按钮切换 -----
+    voiceSelector.addEventListener('click', function(e) {
+        const btn = e.target.closest('.voice-btn');
+        if (!btn) return;
+        voiceSelector.querySelectorAll('.voice-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedVoice = btn.dataset.voice;
+    });
+
     // ----- Speech -----
     let speechSynth = window.speechSynthesis;
-    function speakText(text, voiceType = 'us') {
+
+    function speakText(text, voiceKey) {
         if (speechSynth.speaking) speechSynth.cancel();
         const utter = new SpeechSynthesisUtterance(text);
-        utter.rate = 0.9;
-        utter.pitch = 1.0;
+
+        const vKey = voiceKey || selectedVoice;
+        const vParams = voiceMap[vKey] || voiceMap['ms-henge'];
+        utter.rate = vParams.rate || 0.9;
+        utter.pitch = vParams.pitch || 1.0;
+        utter.volume = 1.0;
+
         const voices = speechSynth.getVoices();
-        if (voiceType === 'us') {
-            const v = voices.find(v => v.lang === 'en-US') || voices.find(v => v.lang.startsWith('en'));
-            if (v) utter.voice = v;
-        } else {
-            const v = voices.find(v => v.lang === 'en-GB') || voices.find(v => v.lang.startsWith('en'));
-            if (v) utter.voice = v;
+        const targetLang = vParams.type === 'uk' ? 'en-GB' : 'en-US';
+        let candidates = voices.filter(v => v.lang === targetLang);
+        if (candidates.length === 0) {
+            candidates = voices.filter(v => v.lang.startsWith('en'));
         }
+
+        let matchedVoice = null;
+        if (candidates.length > 0) {
+            for (let v of candidates) {
+                const name = v.name.toLowerCase();
+                const isFemale = name.includes('female') || name.includes('samantha') || name.includes('victoria') || name.includes('kate') || name.includes('zira') || name.includes('ava');
+                if (vParams.gender === 'female' && isFemale) {
+                    matchedVoice = v;
+                    break;
+                }
+            }
+            if (!matchedVoice) {
+                matchedVoice = candidates[0];
+            }
+        }
+
+        if (matchedVoice) {
+            utter.voice = matchedVoice;
+        }
+
         speechSynth.speak(utter);
         return utter;
     }
@@ -677,22 +748,32 @@
         return d.innerHTML;
     }
 
-    // 计算文本统计信息
+    // ----- 按空行分割 -----
+    function splitByEmptyLines(text) {
+        if (!text.trim()) return [];
+        const parts = text.split(/\n\s*\n/);
+        return parts.map(p => p.trim()).filter(p => p.length > 0);
+    }
+
+    // ----- 计算统计 -----
     function calculateStats(sentences) {
-        // 总词数：所有句子的词数总和
         let totalWords = 0;
-        let totalChars = 0;
         sentences.forEach(s => {
             const words = s.trim().split(/\s+/).filter(w => w.length > 0);
             totalWords += words.length;
-            totalChars += s.length;
         });
         const sentenceCount = sentences.length;
         const avgLength = sentenceCount > 0 ? Math.round((totalWords / sentenceCount) * 10) / 10 : 0;
-        // 预估时长：正常语速约 150词/分钟 = 2.5词/秒，每句加0.5秒停顿，总句数*0.5 + 总词数/2.5
-        const pausePerSentence = 0.5;
+
         const wordsPerSecond = 2.5;
-        const totalSeconds = Math.round((totalWords / wordsPerSecond) + (sentenceCount * pausePerSentence));
+        let totalSeconds = totalWords / wordsPerSecond;
+        if (totalSeconds > 20) {
+            totalSeconds += 5;
+        } else if (totalSeconds > 10) {
+            totalSeconds += 2;
+        }
+        totalSeconds = Math.ceil(totalSeconds);
+
         return { totalWords, sentenceCount, avgLength, totalSeconds };
     }
 
@@ -705,17 +786,20 @@
         statsContainer.classList.remove('hidden');
     }
 
+    // ----- 智能断句（回退用） -----
     function smartSegment(text) {
-        if (!text.trim()) return [];
+        const parts = splitByEmptyLines(text);
+        if (parts.length > 1) return parts;
+
         let raw = text.split(/(?<=[.!?])\s+/);
         const markers = [' and ', ' but ', ' or ', ' so ', ' however ', ' therefore ', ' although ', ' though ', ' because ', ' since ', ' if ', ' when ', ' while ', ' before ', ' after ', ' that ', ' which ', ' who ', ' whom ', ' whose ', ' where ', ' why '];
         let result = [];
         for (let s of raw) {
             if (s.length <= 120) { result.push(s.trim()); continue; }
-            let parts = [s];
+            let parts2 = [s];
             for (let m of markers) {
                 let newParts = [];
-                for (let p of parts) {
+                for (let p of parts2) {
                     let splitArr = p.split(new RegExp(`(${m})`, 'gi'));
                     if (splitArr.length > 1) {
                         let cur = '';
@@ -732,10 +816,10 @@
                         newParts.push(p);
                     }
                 }
-                parts = newParts;
+                parts2 = newParts;
             }
             let finalParts = [];
-            for (let p of parts) {
+            for (let p of parts2) {
                 if (p.length > 80 && p.includes(',')) {
                     let sub = p.split(/(?<=,)\s+/);
                     let combined = '';
@@ -773,8 +857,7 @@
         document.querySelectorAll('.play-single').forEach(btn => {
             btn.addEventListener('click', function(e) {
                 const idx = parseInt(this.dataset.idx);
-                const pron = document.querySelector('input[name="pronunciation"]:checked').value;
-                speakText(sentences[idx], pron);
+                speakText(sentences[idx], selectedVoice);
             });
         });
         if (sentences.length) {
@@ -784,9 +867,31 @@
         } else {
             playTestContainer.classList.add('hidden');
         }
-        // 更新统计
         updateStats(sentences);
     }
+
+    // ----- 清空 -----
+    clearBtn.addEventListener('click', function() {
+        if (textInput.value.trim() === '' && currentSentences.length === 0) {
+            return;
+        }
+        if (confirm('确认清空所有内容？')) {
+            textInput.value = '';
+            updateWordCount();
+            currentSentences = [];
+            practiceData = {};
+            sentencePreviewContainer.classList.add('hidden');
+            statsContainer.classList.add('hidden');
+            resultContainer.classList.add('hidden');
+            generateBtn.disabled = true;
+            playTestContainer.classList.add('hidden');
+            sentencesList.innerHTML = '';
+            sentenceCount.textContent = '0';
+            if (speechSynth.speaking) speechSynth.cancel();
+            testSentence.textContent = testSentences[0];
+            testSentenceIndex = 0;
+        }
+    });
 
     // ----- Tabs -----
     textTab.addEventListener('click', function() {
@@ -842,16 +947,24 @@
     processBtn.addEventListener('click', function() {
         const raw = textInput.value.trim();
         if (!raw) { alert('请先输入或上传练习内容'); return; }
-        const smart = document.getElementById('smartSegmentation').checked;
-        const pron = document.querySelector('input[name="pronunciation"]:checked').value;
         this.disabled = true;
         this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
         setTimeout(() => {
-            currentSentences = smart ? smartSegment(raw) : raw.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(s => s.length > 0);
-            if (!currentSentences.length) currentSentences = ['无法识别句子，请检查内容格式。'];
+            let sentences = splitByEmptyLines(raw);
+            if (sentences.length <= 1) {
+                sentences = smartSegment(raw);
+            }
+            if (sentences.length === 0) {
+                sentences = raw.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(s => s.length > 0);
+            }
+            if (sentences.length === 0) {
+                sentences = ['无法识别句子，请检查内容格式。'];
+            }
+
+            currentSentences = sentences;
             practiceData = {
                 sentences: currentSentences,
-                pronunciation: pron,
+                voice: selectedVoice,
                 timestamp: Date.now(),
                 title: raw.substring(0, 48) + (raw.length > 48 ? '…' : '')
             };
@@ -894,10 +1007,9 @@
 
     // ----- Test play -----
     testPlayBtn.addEventListener('click', function() {
-        const pron = document.querySelector('input[name="pronunciation"]:checked').value;
         const txt = testSentence.textContent;
         if (txt) {
-            const utter = speakText(txt, pron);
+            const utter = speakText(txt, selectedVoice);
             this.innerHTML = '<i class="fas fa-volume-up"></i> 播放中…';
             this.disabled = true;
             if (utter) {
@@ -959,6 +1071,9 @@ Finally, when saying goodbye, you can use phrases like "It was nice talking to y
         container.className = 'student-container';
         document.body.appendChild(container);
 
+        const voiceLabel = voiceMap[pd.voice] ? voiceMap[pd.voice].label : 'Ms. Henge';
+        const voiceType = voiceMap[pd.voice] ? voiceMap[pd.voice].type : 'uk';
+
         container.innerHTML = `
             <header class="topbar" style="max-width:1280px; width:100%; border-radius:0 0 24px 24px;">
                 <div class="brand">
@@ -976,7 +1091,7 @@ Finally, when saying goodbye, you can use phrases like "It was nice talking to y
                 <div class="main-card" style="padding:28px 32px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
                         <h2 style="font-size:1.2rem; font-weight:700; color:#121212;"><i class="fas fa-bullseye" style="color:#48A89E;"></i> 跟读训练</h2>
-                        <span style="background:#E4EDD8; padding:4px 16px; border-radius:40px; font-size:0.85rem; color:#48A89E; font-weight:600;">${pd.pronunciation === 'us' ? '🇺🇸 美式' : '🇬🇧 英式'}</span>
+                        <span style="background:#E4EDD8; padding:4px 16px; border-radius:40px; font-size:0.85rem; color:#48A89E; font-weight:600;">${voiceType === 'uk' ? '🇬🇧 英音' : '🇺🇸 美音'} · ${voiceLabel}</span>
                     </div>
                     <div style="background:#F9F7E8; border-radius:16px; padding:12px 18px; margin-bottom:20px; color:#777770; border:1px solid #E8E6D8;">
                         <i class="fas fa-info-circle" style="color:#48A89E;"></i> 听句子 → 跟读练习，可反复播放。
@@ -1018,6 +1133,7 @@ Finally, when saying goodbye, you can use phrases like "It was nice talking to y
         const stuRepeat = document.getElementById('stuRepeat');
         const stuBack = document.getElementById('stuBack');
         const stuList = document.getElementById('stuSentenceList');
+        const studentVoice = pd.voice || 'ms-henge';
 
         function renderList() {
             stuList.innerHTML = sentences.map((s, i) => `
@@ -1045,7 +1161,7 @@ Finally, when saying goodbye, you can use phrases like "It was nice talking to y
 
         function playCurrent() {
             if (playing) { speechSynth.cancel(); playing = false; stuPlay.innerHTML = '<i class="fas fa-volume-up"></i> 播放'; return; }
-            const utter = speakText(sentences[idx], pd.pronunciation);
+            const utter = speakText(sentences[idx], studentVoice);
             stuPlay.innerHTML = '<i class="fas fa-pause"></i> 播放中…';
             playing = true;
             if (utter) {
